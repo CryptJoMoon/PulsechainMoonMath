@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PLS Bag Value Estimator</title>
+  <link rel="icon" href="data:,">
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0d0d0d;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+    }
+    h1 {
+      color: #00ffff;
+    }
+    .container {
+      max-width: 500px;
+      width: 100%;
+      background: #1e1e1e;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+    }
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      margin: 10px 0 20px;
+      padding: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+    .output {
+      font-size: 18px;
+      margin: 10px 0;
+    }
+    .label {
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .preset-buttons button {
+      margin: 5px;
+      padding: 10px 15px;
+      font-size: 14px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .preset-buttons button:hover {
+      background-color: #0056b3;
+    }
+    #footer {
+      margin-top: 40px;
+      font-size: 14px;
+      color: #888;
+      text-align: center;
+    }
+    #promo {
+      margin-top: 50px;
+      text-align: center;
+      background: #111;
+      padding: 20px;
+      border-radius: 12px;
+      max-width: 480px;
+    }
+    #promo a img {
+      width: 100px;
+      border-radius: 50%;
+      margin-bottom: 10px;
+      transition: transform 0.3s ease;
+    }
+    #promo a img:hover {
+      transform: scale(1.1) rotate(2deg);
+    }
+    #promo h2 {
+      margin: 0;
+      font-size: 20px;
+      color: #ff66cc;
+    }
+    #promo a {
+      color: #00ffff;
+      display: inline-block;
+      margin-top: 5px;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    #promo a:hover {
+      color: #ff66cc;
+    }
+  </style>
+</head>
+<body>
+  <h1>PLS Moon Math Calculator</h1>
+  <div class="container">
+    <label class="label" for="plsAmount">Enter your PLS bag size:</label>
+    <input type="text" id="plsAmount" placeholder="e.g. 1,000,000" value="1,000,000" />
+
+    <label class="label" for="marketcap">Enter Marketcap in USD:</label>
+    <input type="text" id="marketcap" placeholder="e.g. 100,000,000" value="100,000,000" />
+
+    <div class="preset-buttons">
+      <button onclick="setMarketcap(100_000_000)">$100M</button>
+      <button onclick="setMarketcap(1_000_000_000)">$1B</button>
+      <button onclick="setMarketcap(10_000_000_000)">$10B</button>
+      <button onclick="setMarketcap(100_000_000_000)">$100B</button>
+      <button onclick="setMarketcap(1_000_000_000_000)">$1T</button>
+      <button onclick="setCurrentMarketcap()">🔍 Set to Current MC</button>
+    </div>
+
+    <div class="output">Circulating Supply (PLS): <span id="supplyDisplay">Loading...</span> <button onclick="fetchCirculatingSupply()">↻</button></div>
+    <div class="output">Estimated PLS Price: <span id="plsPriceDisplay">$0.00000</span></div>
+    <div class="output">Your Bag Value: <span id="bagValueDisplay">$0.00</span></div>
+  </div>
+
+  <div id="promo">
+    <a href="https://simponpulse.com/" target="_blank">
+      <img src="/Simp_PLS.png" alt="SIMP logo" />
+    </a>
+    <h2>Powered by SIMP on Pulse 🔥</h2>
+    <a href="https://simponpulse.com/" target="_blank">🌐 simponpulse.com</a>
+    <a href="https://t.me/SIMPonPLS" target="_blank">💬 Telegram</a>
+    <a href="https://x.com/SIMPonPulse" target="_blank">🐦 Twitter / X</a>
+  </div>
+
+  <div id="footer">
+    Not financial advice | Supply pulled from WPLS contract + on-chain burns
+  </div>
+
+  <script>
+    let circulatingSupply = 0;
+    const deadAddress = "0x000000000000000000000000000000000000dEaD";
+    const originAddress = "0x0000000000000000000000000000000000000369";
+    const wplsAddress = "0xA1077a294dDE1B09bB078844df40758a5D0f9a27";
+    const erc20Abi = [{ "constant": true, "inputs": [], "name": "totalSupply", "outputs": [{ "name": "", "type": "uint256" }], "type": "function" }];
+
+    function parseNumber(input) {
+      return parseFloat(input.replace(/,/g, '')) || 0;
+    }
+
+    function formatNumber(num) {
+      return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+
+    function setMarketcap(val) {
+      document.getElementById("marketcap").value = formatNumber(val);
+      update();
+    }
+
+    async function setCurrentMarketcap() {
+      if (circulatingSupply <= 0) return;
+      try {
+        const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=pulsechain&vs_currencies=usd");
+        const data = await res.json();
+        const price = data.pulsechain.usd;
+        const marketcap = price * circulatingSupply;
+        document.getElementById("marketcap").value = formatNumber(marketcap);
+        update();
+      } catch (err) {
+        console.warn("Failed to fetch current price:", err);
+      }
+    }
+
+    async function fetchCirculatingSupply() {
+      try {
+        const web3 = new Web3("https://rpc.pulsechain.com");
+        const contract = new web3.eth.Contract(erc20Abi, wplsAddress);
+
+        const totalSupplyRaw = await contract.methods.totalSupply().call();
+        const totalSupplyPLS = parseFloat(web3.utils.fromWei(totalSupplyRaw));
+
+        const balanceDead = await web3.eth.getBalance(deadAddress);
+        const balance369 = await web3.eth.getBalance(originAddress);
+        const burnedPLS = parseFloat(web3.utils.fromWei(
+          web3.utils.toBN(balanceDead).add(web3.utils.toBN(balance369))
+        ));
+
+        circulatingSupply = totalSupplyPLS - burnedPLS;
+        document.getElementById("supplyDisplay").textContent = formatNumber(circulatingSupply);
+      } catch (err) {
+        console.warn("Failed to fetch supply or balances.", err);
+        document.getElementById("supplyDisplay").textContent = "Error";
+        circulatingSupply = 1;
+      }
+      update();
+    }
+
+    function update() {
+      const plsInput = document.getElementById("plsAmount").value;
+      const marketcapInput = document.getElementById("marketcap").value;
+
+      const plsAmount = parseNumber(plsInput);
+      const marketcap = parseNumber(marketcapInput);
+      const plsPrice = marketcap / circulatingSupply;
+      const bagValue = plsPrice * plsAmount;
+
+      document.getElementById("plsAmount").value = formatNumber(plsAmount);
+      document.getElementById("marketcap").value = formatNumber(marketcap);
+      document.getElementById("plsPriceDisplay").textContent = `$${plsPrice.toFixed(6)}`;
+      document.getElementById("bagValueDisplay").textContent = `$${formatNumber(bagValue)}`;
+    }
+
+    document.getElementById("plsAmount").addEventListener("input", update);
+    document.getElementById("marketcap").addEventListener("input", update);
+
+    fetchCirculatingSupply();
+  </script>
+</body>
+</html>
