@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,6 +16,29 @@
       flex-direction: column;
       align-items: center;
       padding: 40px;
+    }
+    #topbar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 25px;
+      background: #111;
+      padding: 10px 20px;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 960px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    #topbar a {
+      text-decoration: none;
+      color: #00ffff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #topbar a:hover {
+      color: #ff66cc;
     }
     h1 {
       color: #00ffff;
@@ -99,6 +123,12 @@
   </style>
 </head>
 <body>
+  <div id="topbar">
+    <a href="https://pulsechain-rankings.vercel.app/" target="_blank">🧠 PulseChain Coin Rankings</a>
+    <a href="https://liquidity-pools.vercel.app/" target="_blank">💧 Liquidity Pool Explorer</a>
+    <a href="https://contract-creation.vercel.app/" target="_blank">🔍 Created Contracts</a>
+  </div>
+
   <h1>PLS Moon Math Calculator</h1>
   <div class="container">
     <label class="label" for="plsAmount">Enter your PLS bag size:</label>
@@ -123,7 +153,7 @@
 
   <div id="promo">
     <a href="https://simponpulse.com/" target="_blank">
-      <img src="/Simp_PLS.png" alt="SIMP logo" />
+      <img src="https://pls-estimator.vercel.app/Simp_PLS.png" alt="SIMP logo" />
     </a>
     <h2>Powered by SIMP on Pulse 🔥</h2>
     <a href="https://simponpulse.com/" target="_blank">🌐 simponpulse.com</a>
